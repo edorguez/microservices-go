@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-	log.Println("Starting Trip Service")
 	inmemRepo := repository.NewInmemRepository()
 	svc := service.NewTripService(inmemRepo)
 	httpHandler := h.HttpHandler{Service: svc}
@@ -21,8 +20,6 @@ func main() {
 		Addr:    ":8083",
 		Handler: mux,
 	}
-
-	log.Println("Starting Trip Service 2")
 
 	if err := server.ListenAndServe(); err != nil {
 		log.Printf("HTTP server error: %v", err)
