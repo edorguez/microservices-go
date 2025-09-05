@@ -51,3 +51,21 @@ func (h *gRPCHandler) PreviewTrip(ctx context.Context, req *pb.PreviewTripReques
 		RideFares: []*pb.RideFare{},
 	}, nil
 }
+
+func (h *gRPCHandler) CreateTrip(ctx context.Context, req *pb.CreateTripRequest) (*pb.CreateTripResponse, error) {
+	trip := &domain.RideFareModel{
+		UserID:             req.UserID,
+		PackageSlug:        "van",
+		TotalPrinceInCents: 100,
+	}
+
+	t, err := h.service.CreateTrip(ctx, trip)
+	if err != nil {
+		log.Println(err)
+		return nil, status.Errorf(codes.Internal, "failed to create trip: %v", err)
+	}
+
+	return &pb.CreateTripResponse{
+		TripID: t.ID.Hex(),
+	}, nil
+}
