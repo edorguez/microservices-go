@@ -39,6 +39,50 @@ func NewRabbitMQ(uri string) (*RabbitMQ, error) {
 	return rmq, nil
 }
 
+type MessageHandler func(context.Context, amqp.Delivery) error
+
+func (r *RabbitMQ) ConsumeMessages(queueName string, handler MessageHandler) error {
+	// Set prefetch count to 1 for fair dispatch
+	// This tells RabbitMQ not to give more than one message to a service at a time.
+	// The worker will only get the next message after it has acknowledged the previous one.
+	err := r.Channel.Qos(
+		1,     // prefetchCount: Limit to 1 unacknowledged message per consumer
+		0,     // prefetchSize: No specific limit on message size
+		false, // global: Apply prefetchCount to each consumer individually
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to set QoS: %v", err)
+	}
+
+	msgs, err := r.Channel.Consume(
+		queueName, // queue
+		"",        // consumer
+		true,      // auto-ack
+		false,     // exclusive
+		false,     // no-local
+		false,     // no-wait
+		nil,       // args
+	)
+
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	go func() {
+		for msg := range msgs {
+			log.Printf("Received a message: %s", msg.Body)
+			if err := handler(ctx, msg); err != nil {
+				log.Fatalf("failed to handle the message: %v", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
 func (r *RabbitMQ) PublishMessage(ctx context.Context, routingKey string, message string) error {
 	return r.Channel.PublishWithContext(ctx,
 		"",      // exchange
